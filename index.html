@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0c10">
+  <title>Перехват радиосигнала</title>
+  <style>
+    :root {
+      --bg-color: #0b0c10;
+      --card-bg: #151a21;
+      --accent-color: #66fcf1;
+      --secondary-color: #45a29e;
+      --text-main: #e0e2e5;
+      --text-muted: #8892b0;
+      --bulb-off: #1f2833;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Courier New", monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: max(20px, env(safe-area-inset-top)) 16px max(30px, env(safe-area-inset-bottom)) 16px;
+      touch-action: manipulation;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    header {
+      margin-bottom: 15px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      letter-spacing: 2px;
+      color: var(--accent-color);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    p.subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* Блок лампочки */
+    .station-box {
+      width: 100%;
+      background: var(--card-bg);
+      border: 1px solid #232d3f;
+      border-radius: 16px;
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      margin-bottom: 25px;
+    }
+
+    .bulb-wrapper {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+
+    .bulb {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: var(--bulb-off);
+      border: 3px solid #2f3e46;
+      transition: background 0.04s ease, box-shadow 0.04s ease;
+    }
+
+    /* Состояние активного свечения */
+    .bulb.active {
+      background: #ffe600;
+      border-color: #ffffff;
+      box-shadow: 0 0 40px #ffe600, 0 0 80px #ff9900, 0 0 110px #ff5500;
+    }
+
+    .status {
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem;
+      min-height: 2em;
+      margin-bottom: 16px;
+      color: var(--secondary-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Кнопка запуска */
+    .btn-main {
+      width: 100%;
+      max-width: 280px;
+      height: 52px;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #0b0c10;
+      background: var(--accent-color);
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.1s ease, background 0.2s ease;
+      box-shadow: 0 4px 15px rgba(102, 252, 241, 0.3);
+    }
+
+    .btn-main:active {
+      transform: scale(0.96);
+      background: var(--secondary-color);
+    }
+
+    /* Секция со справочником */
+    .reference-section {
+      width: 100%;
+      background: var(--card-bg);
+      border: 1px solid #232d3f;
+      border-radius: 16px;
+      padding: 18px 12px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+    }
+
+    .reference-title {
+      font-size: 0.95rem;
+      letter-spacing: 1px;
+      color: var(--accent-color);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    /* Сетка Морзе: 4 колонки под мобильный дисплей */
+    .morse-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .morse-card {
+      background: rgba(11, 12, 16, 0.7);
+      border: 1px solid #1f2833;
+      border-radius: 8px;
+      padding: 8px 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .morse-char {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #ffffff;
+      margin-bottom: 2px;
+    }
+
+    .morse-code {
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--accent-color);
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>ПРИЁМНИК СИГНАЛА</h1>
+      <p class="subtitle">В эфире зафиксирована циклическая передача</p>
+    </header>
+
+    <!-- Станция с мигающей лампочкой -->
+    <div class="station-box">
+      <div class="bulb-wrapper">
+        <div id="bulb" class="bulb"></div>
+      </div>
+      <div id="status" class="status">Ожидание команды...</div>
+      <button id="toggleBtn" class="btn-main">Начать приём</button>
+    </div>
+
+    <!-- Таблица-справочник азбуки Морзе -->
+    <div class="reference-section">
+      <div class="reference-title">
+        <span>📋</span> СПРАВОЧНИК СИГНАЛОВ (А-Я)
+      </div>
+
+      <div class="morse-grid" id="morseTable">
+        <!-- Генерируется автоматически через JS -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Полная русская азбука Морзе
+    const FULL_ALPHABET = {
+      'А': '.-',    'Б': '-...',  'В': '.--',   'Г': '--.',
+      'Д': '-..',   'Е': '.',     'Ж': '...-',  'З': '--..',
+      'И': '..',    'Й': '.---',  'К': '-.-',   'Л': '.-..',
+      'М': '--',    'Н': '-.',    'О': '---',   'П': '.--.',
+      'Р': '.-.',   'С': '...',   'Т': '-',     'У': '..-',
+      'Ф': '..-.',  'Х': '....',  'Ц': '-.-.',  'Ч': '---.',
+      'Ш': '----',  'Щ': '--.-',  'Ъ/Ь': '-..-', 'Ы': '-.--',
+      'Э': '..-..', 'Ю': '..--',  'Я': '.-.-'
+    };
+
+    // Отрисовка справочника Морзе на странице
+    const morseContainer = document.getElementById('morseTable');
+    for (const [char, code] of Object.entries(FULL_ALPHABET)) {
+      const card = document.createElement('div');
+      card.className = 'morse-card';
+      card.innerHTML = `<span class="morse-char">${char}</span><span class="morse-code">${code}</span>`;
+      morseContainer.appendChild(card);
+    }
+
+    // Зашифрованная последовательность: РУБИК + 3 доп. буквы (Л, О, А) вразброс
+    const SEQUENCE = ['Л', 'Б', 'О', 'И', 'А', 'К', 'У', 'Р'];
+
+    // Тайминги Морзе (мс)
+    const UNIT = 200;            // Точка (.)
+    const DASH = UNIT * 3;       // Тире (-) = 600мс
+    const INTRA_CHAR = UNIT;     // Пауза между знаками одной буквы
+    const INTER_CHAR = UNIT * 3; // Пауза между буквами
+    const LOOP_DELAY = UNIT * 8; // Пауза перед новым повтором цикла
+
+    const bulb = document.getElementById('bulb');
+    const statusText = document.getElementById('status');
+    const toggleBtn = document.getElementById('toggleBtn');
+
+    let isPlaying = false;
+    let audioCtx = null;
+
+    // Звуковой генератор (чистый тон 650Hz)
+    function playBeep(duration) {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(650, audioCtx.currentTime);
+
+      // Плавная атака и спад для устранения щелчков динамика на мобилках
+      gain.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.01);
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime + (duration / 1000) - 0.01);
+      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration / 1000);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration / 1000);
+    }
+
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    async function flash(duration) {
+      bulb.classList.add('active');
+      playBeep(duration);
+      await sleep(duration);
+      bulb.classList.remove('active');
+    }
+
+    async function startLoop() {
+      while (isPlaying) {
+        statusText.innerText = "● ПЕРЕДАЧА СИГНАЛА...";
+        statusText.style.color = "#ffe600";
+        
+        for (let i = 0; i < SEQUENCE.length; i++) {
+          if (!isPlaying) return;
+          const letter = SEQUENCE[i];
+          const pattern = FULL_ALPHABET[letter];
+
+          for (let j = 0; j < pattern.length; j++) {
+            if (!isPlaying) return;
+            const symbol = pattern[j];
+            const duration = (symbol === '-') ? DASH : UNIT;
+
+            await flash(duration);
+
+            if (j < pattern.length - 1) {
+              await sleep(INTRA_CHAR);
+            }
+          }
+
+          // Пауза между буквами
+          if (i < SEQUENCE.length - 1) {
+            await sleep(INTER_CHAR);
+          }
+        }
+
+        if (!isPlaying) return;
+        statusText.innerText = "Цикл завершён. Повтор...";
+        statusText.style.color = "var(--secondary-color)";
+        await sleep(LOOP_DELAY);
+      }
+    }
+
+    toggleBtn.addEventListener('click', async () => {
+      // Инициализация / пробуждение аудиоконтекста для мобильного Chrome
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+
+      isPlaying = !isPlaying;
+
+      if (isPlaying) {
+        toggleBtn.innerText = "Остановить";
+        toggleBtn.style.background = "#ff4d4d";
+        startLoop();
+      } else {
+        toggleBtn.innerText = "Начать приём";
+        toggleBtn.style.background = "var(--accent-color)";
+        statusText.innerText = "Приём остановлен";
+        statusText.style.color = "var(--secondary-color)";
+        bulb.classList.remove('active');
+      }
+    });
+  </script>
+</body>
+</html>
